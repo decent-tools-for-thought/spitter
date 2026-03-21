@@ -8,7 +8,7 @@ license=('MIT')
 depends=('python' 'ffmpeg' 'pipewire' 'libpulse')
 makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/decent-tools-for-thought/spitter/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz")
-sha256sums=('b2c729bb4e167f46f7cc25bff5ca1ab689dedfe6ebe62280f0ba947e163e2b15')
+sha256sums=('1aafefa35713ccc382dd67a9b46eb2ceead7fb5f65bae042dd062ce387b537c6')
 
 build() {
   cd "$srcdir/$pkgname-$pkgver"
