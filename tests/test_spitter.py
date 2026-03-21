@@ -15,6 +15,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 import spitter
+import spitter.core as spitter_core
 
 
 class SpitterTests(unittest.TestCase):
@@ -35,9 +36,13 @@ class SpitterTests(unittest.TestCase):
         self.assertEqual(settings.default_voice_id, spitter.DEFAULT_VOICE_ID)
         self.assertEqual(settings.default_voice_source, "builtin")
 
+    def test_runtime_settings_use_installed_safe_default_token_path(self) -> None:
+        settings = spitter.get_runtime_settings()
+        self.assertEqual(settings.token_file, spitter.get_default_token_file())
+
     def test_load_api_key_reads_token_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            token_path = Path(directory) / "token.txt"
+            token_path = Path(directory) / "cartesia-api-key"
             token_path.write_text("from-file\n", encoding="utf-8")
             os.environ["SPITTER_TOKEN_FILE"] = str(token_path)
             settings = spitter.get_runtime_settings()
@@ -45,7 +50,7 @@ class SpitterTests(unittest.TestCase):
 
     def test_handle_login_writes_token_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            token_path = Path(directory) / "token.txt"
+            token_path = Path(directory) / "cartesia-api-key"
             os.environ["SPITTER_TOKEN_FILE"] = str(token_path)
             settings = spitter.get_runtime_settings()
             args = mock.Mock(token="from-login", stdin=False, validate=False, json=False)
@@ -56,7 +61,7 @@ class SpitterTests(unittest.TestCase):
     @mock.patch("sys.stdin", new_callable=io.StringIO)
     def test_handle_login_reads_stdin(self, stdin: io.StringIO) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            token_path = Path(directory) / "token.txt"
+            token_path = Path(directory) / "cartesia-api-key"
             os.environ["SPITTER_TOKEN_FILE"] = str(token_path)
             stdin.write("stdin-token\n")
             stdin.seek(0)
@@ -65,6 +70,44 @@ class SpitterTests(unittest.TestCase):
             exit_code = spitter.handle_login(args, settings)
             self.assertEqual(exit_code, 0)
             self.assertEqual(token_path.read_text(encoding="utf-8"), "stdin-token\n")
+
+    @mock.patch("subprocess.Popen")
+    def test_spawn_session_daemon_uses_module_entrypoint(
+        self, popen: mock.Mock
+    ) -> None:
+        settings = spitter.get_runtime_settings()
+        process = mock.Mock()
+        process.poll.return_value = None
+        popen.return_value = process
+
+        with tempfile.TemporaryDirectory() as directory:
+            log_path = Path(directory) / "session.log"
+            status = {"socket_path": "/tmp/spitter.sock", "idle_timeout_seconds": 90}
+            with (
+                mock.patch("spitter.core.get_session_paths") as get_paths,
+                mock.patch("spitter.core.load_api_key"),
+                mock.patch("spitter.core.get_session_status", return_value=status),
+            ):
+                get_paths.return_value = mock.Mock(
+                    root=Path(directory),
+                    socket_path=Path(directory) / "session.sock",
+                    state_path=Path(directory) / "session.json",
+                    log_path=log_path,
+                )
+                result = spitter_core.spawn_session_daemon(
+                    "default",
+                    settings,
+                    idle_timeout_seconds=90,
+                )
+
+        self.assertEqual(result, status)
+        popen.assert_called_once()
+        args, kwargs = popen.call_args
+        self.assertEqual(
+            args[0][:4],
+            [sys.executable, "-m", "spitter", "_sessiond"],
+        )
+        self.assertNotIn("cwd", kwargs)
 
     def test_build_tts_request_uses_expected_shape(self) -> None:
         output_format = spitter.build_output_format(

@@ -31,7 +31,6 @@ from .websocket import (
 )
 
 PACKAGE_DIR = Path(__file__).resolve().parent
-SCRIPT_DIR = PACKAGE_DIR.parent.parent
 
 DEFAULT_BASE_URL = "https://api.cartesia.ai"
 DEFAULT_API_VERSION = "2026-03-01"
@@ -105,7 +104,6 @@ class AudioOutputStatus:
 
 @dataclass(frozen=True)
 class RuntimeSettings:
-    repo_root: Path
     token_file: Path
     base_url: str
     api_version: str
@@ -119,12 +117,21 @@ class RuntimeSettings:
     default_audio_check: str
 
 
+def get_default_token_file() -> Path:
+    config_home = os.getenv("XDG_CONFIG_HOME")
+    if config_home:
+        base_dir = Path(config_home).expanduser()
+    else:
+        base_dir = Path.home() / ".config"
+    return base_dir / "spitter" / "cartesia-api-key"
+
+
 def get_runtime_settings() -> RuntimeSettings:
     token_override = os.getenv("SPITTER_TOKEN_FILE")
     token_file = (
         Path(token_override).expanduser()
         if token_override
-        else SCRIPT_DIR / "token.txt"
+        else get_default_token_file()
     )
     idle_timeout = int(
         os.getenv(
@@ -133,7 +140,6 @@ def get_runtime_settings() -> RuntimeSettings:
         )
     )
     return RuntimeSettings(
-        repo_root=SCRIPT_DIR,
         token_file=token_file,
         base_url=os.getenv("CARTESIA_BASE_URL", DEFAULT_BASE_URL).rstrip("/"),
         api_version=os.getenv("CARTESIA_API_VERSION", DEFAULT_API_VERSION),
@@ -610,9 +616,7 @@ def resolve_voice(
         if voices:
             return voices[0]
 
-    raise SpitterError(
-        "No usable voice found. Run `./spitter voices list` and pass --voice."
-    )
+    raise SpitterError("No usable voice found. Run `spitter voices list` and pass --voice.")
 
 
 def build_output_format(
@@ -719,7 +723,6 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
             "playback_command": "ffplay -nodisp -autoexit -hide_banner -loglevel error <file>",
         },
         "runtime": {
-            "repo_root": str(settings.repo_root),
             "token_file": str(settings.token_file),
             "token_file_exists": settings.token_file.exists(),
             "ffplay_available": bool(settings.ffplay_path),
@@ -761,7 +764,10 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
             {
                 "name": "SPITTER_TOKEN_FILE",
                 "required": False,
-                "purpose": "Override the token file path. Defaults to ./token.txt.",
+                "purpose": (
+                    "Override the token file path. Defaults to "
+                    f"{settings.token_file}."
+                ),
             },
             {
                 "name": "CARTESIA_API_VERSION",
@@ -818,9 +824,9 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                     "commands can authenticate without inline secrets."
                 ),
                 "examples": [
-                    "./spitter login",
-                    "./spitter login --token <cartesia-token>",
-                    "pass show cartesia/token | ./spitter login --stdin --validate",
+                    "spitter login",
+                    "spitter login --token <cartesia-token>",
+                    "pass show cartesia/token | spitter login --stdin --validate",
                 ],
                 "options": ["--token", "--stdin", "--validate", "--json"],
             },
@@ -831,11 +837,11 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                     "Websocket mode can optionally reuse a named warm session."
                 ),
                 "examples": [
-                    "./spitter say \"Build finished.\"",
-                    "./spitter say \"Stream this now.\" --transport websocket",
-                    "./spitter say \"Low-latency reply.\" --transport websocket --session default",
-                    "./spitter say \"Save MP3 only.\" --container mp3 --bit-rate 128000 --no-play --output /tmp/notice.mp3",
-                    "./spitter say \"Inspect the resolved request.\" --dry-run --json",
+                    "spitter say \"Build finished.\"",
+                    "spitter say \"Stream this now.\" --transport websocket",
+                    "spitter say \"Low-latency reply.\" --transport websocket --session default",
+                    "spitter say \"Save MP3 only.\" --container mp3 --bit-rate 128000 --no-play --output /tmp/notice.mp3",
+                    "spitter say \"Inspect the resolved request.\" --dry-run --json",
                 ],
                 "arguments": [
                     {
@@ -874,8 +880,8 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                 "name": "sessions start",
                 "summary": "Start a named local websocket session daemon.",
                 "examples": [
-                    "./spitter sessions start default",
-                    "./spitter sessions start low-latency --idle-timeout 120 --json",
+                    "spitter sessions start default",
+                    "spitter sessions start low-latency --idle-timeout 120 --json",
                 ],
                 "arguments": [
                     {
@@ -890,8 +896,8 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                 "name": "sessions list",
                 "summary": "List local websocket sessions and their current status.",
                 "examples": [
-                    "./spitter sessions list",
-                    "./spitter sessions list --json",
+                    "spitter sessions list",
+                    "spitter sessions list --json",
                 ],
                 "options": ["--json"],
             },
@@ -899,7 +905,7 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                 "name": "sessions get",
                 "summary": "Fetch JSON status for one local websocket session.",
                 "examples": [
-                    "./spitter sessions get default",
+                    "spitter sessions get default",
                 ],
                 "arguments": [
                     {
@@ -914,7 +920,7 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                 "name": "sessions stop",
                 "summary": "Stop a named local websocket session daemon.",
                 "examples": [
-                    "./spitter sessions stop default",
+                    "spitter sessions stop default",
                 ],
                 "arguments": [
                     {
@@ -929,9 +935,9 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                 "name": "voices list",
                 "summary": "List voices via GET /voices with language, ownership, and search filters.",
                 "examples": [
-                    "./spitter voices list",
-                    "./spitter voices list --language de --query narrator",
-                    "./spitter voices list --owned --preview-url --json",
+                    "spitter voices list",
+                    "spitter voices list --language de --query narrator",
+                    "spitter voices list --owned --preview-url --json",
                 ],
                 "options": [
                     "--limit",
@@ -949,8 +955,8 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                 "name": "voices get",
                 "summary": "Fetch a specific voice via GET /voices/{id}.",
                 "examples": [
-                    "./spitter voices get <voice-id>",
-                    "./spitter voices get <voice-id> --preview-url --json",
+                    "spitter voices get <voice-id>",
+                    "spitter voices get <voice-id> --preview-url --json",
                 ],
                 "arguments": [
                     {
@@ -965,9 +971,9 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                 "name": "describe",
                 "summary": "Print a machine-readable description of the CLI contract and runtime defaults.",
                 "examples": [
-                    "./spitter describe",
-                    "./spitter describe say",
-                    "./spitter describe sessions",
+                    "spitter describe",
+                    "spitter describe say",
+                    "spitter describe sessions",
                 ],
                 "arguments": [
                     {
@@ -1126,14 +1132,14 @@ def spawn_session_daemon(
         process = subprocess.Popen(
             [
                 sys.executable,
-                str(SCRIPT_DIR / "spitter.py"),
+                "-m",
+                "spitter",
                 "_sessiond",
                 "--name",
                 name,
                 "--idle-timeout",
                 str(idle_timeout_seconds),
             ],
-            cwd=str(settings.repo_root),
             stdin=subprocess.DEVNULL,
             stdout=log_handle,
             stderr=log_handle,
@@ -1561,8 +1567,8 @@ def build_parser(settings: RuntimeSettings) -> argparse.ArgumentParser:
         description=(
             "Cartesia text-to-speech CLI for agents.\n\n"
             "Default behavior:\n"
-            "- reads CARTESIA_API_KEY or repo-local token.txt\n"
-            "- can write token.txt through `spitter login`\n"
+            f"- reads CARTESIA_API_KEY or {settings.token_file}\n"
+            "- can persist a token through `spitter login`\n"
             f"- uses Cartesia API version {settings.api_version}\n"
             "- defaults to POST /tts/bytes\n"
             "- can stream over websocket directly or through named local sessions\n"
@@ -1577,12 +1583,12 @@ def build_parser(settings: RuntimeSettings) -> argparse.ArgumentParser:
               {DOCS["voices"]}
 
             Examples:
-              ./spitter login --validate
-              ./spitter say "Build finished."
-              ./spitter say "Use websocket now." --transport websocket
-              ./spitter sessions start default
-              ./spitter say "Low latency." --transport websocket --session default
-              ./spitter describe
+              spitter login --validate
+              spitter say "Build finished."
+              spitter say "Use websocket now." --transport websocket
+              spitter sessions start default
+              spitter say "Low latency." --transport websocket --session default
+              spitter describe
             """
         ),
     )

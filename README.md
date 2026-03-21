@@ -1,6 +1,6 @@
 # spitter
 
-`spitter` is a repo-local Cartesia text-to-speech CLI meant for humans and coding agents. It wraps the Cartesia `GET /voices`, `GET /voices/{id}`, `POST /tts/bytes`, and websocket TTS endpoints behind a stable command-line contract and a machine-readable `describe` command.
+`spitter` is a Cartesia text-to-speech CLI for humans and coding agents. It wraps the Cartesia `GET /voices`, `GET /voices/{id}`, `POST /tts/bytes`, and websocket TTS endpoints behind a stable command-line contract and a machine-readable `describe` command.
 
 Cartesia does ship a separate CLI for Line voice agents, but that is aimed at building and deploying hosted agents rather than simple local text-to-speech playback. This repo fills that gap for "say this out loud on this machine" workflows.
 
@@ -8,7 +8,7 @@ Cartesia does ship a separate CLI for Line voice agents, but that is aimed at bu
 
 - Python 3.13+
 - `ffplay` for local playback
-- A Cartesia API key in `CARTESIA_API_KEY` or repo-local `token.txt`
+- A Cartesia API key in `CARTESIA_API_KEY` or the default credential file at `~/.config/spitter/cartesia-api-key`
 
 ## Install
 
@@ -162,7 +162,7 @@ spitter login --token <cartesia-token> --validate
 ## Environment Variables
 
 - `CARTESIA_API_KEY`: preferred token source
-- `SPITTER_TOKEN_FILE`: override the token file path
+- `SPITTER_TOKEN_FILE`: override the credential file path
 - `CARTESIA_API_VERSION`: override the `Cartesia-Version` header
 - `CARTESIA_BASE_URL`: override the API base URL
 - `SPITTER_MODEL_ID`: override the default model
