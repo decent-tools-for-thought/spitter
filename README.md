@@ -12,15 +12,19 @@ Cartesia does ship a separate CLI for Line voice agents, but that is aimed at bu
 
 ## Install
 
-Arch install from the GitHub-hosted package metadata:
+Install from a tagged GitHub release artifact:
 
 ```bash
-git clone https://github.com/decent-tools-for-thought/spitter.git
-cd spitter
-makepkg -si
+uv tool install \
+  "https://github.com/decent-tools-for-thought/spitter/releases/download/v0.1.1/spitter-0.1.1-py3-none-any.whl"
 ```
 
-The `PKGBUILD` downloads the versioned release archive from GitHub Releases, verifies its checksum, builds the wheel, and installs the real `spitter` console command from the Python package entry point.
+For local development:
+
+```bash
+uv sync
+uv run spitter --help
+```
 
 Release asset naming is stable:
 
@@ -29,7 +33,7 @@ spitter-<version>.tar.gz
 spitter-<version>-py3-none-any.whl
 ```
 
-Tagging `v<version>` publishes those artifacts through the included GitHub Actions workflow.
+Tagging `v<version>` publishes those artifacts from the tagged commit through the included GitHub Actions workflow.
 
 ## Quick Start
 

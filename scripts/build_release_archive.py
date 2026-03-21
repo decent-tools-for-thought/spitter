@@ -11,11 +11,6 @@ from pathlib import Path
 
 import tomllib
 
-EXCLUDED_PATHS = {
-    Path("PKGBUILD"),
-    Path(".SRCINFO"),
-}
-
 
 def project_version(repo_root: Path) -> str:
     pyproject = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
@@ -32,7 +27,7 @@ def tracked_files(repo_root: Path) -> list[Path]:
     return [
         repo_root / Path(entry.decode("utf-8"))
         for entry in result.stdout.split(b"\x00")
-        if entry and Path(entry.decode("utf-8")) not in EXCLUDED_PATHS
+        if entry
     ]
 
 

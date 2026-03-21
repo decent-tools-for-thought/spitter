@@ -11,3 +11,4 @@ token.txt
 spitter-*.wav
 spitter-*.raw
 spitter-*.mp3
+.venv/
