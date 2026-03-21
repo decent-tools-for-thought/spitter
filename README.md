@@ -10,6 +10,16 @@ Cartesia does ship a separate CLI for Line voice agents, but that is aimed at bu
 - `ffplay` for local playback
 - A Cartesia API key in `CARTESIA_API_KEY` or repo-local `token.txt`
 
+## Install
+
+Local Arch package build:
+
+```bash
+makepkg -si
+```
+
+This installs a real `spitter` console command from the Python package entry point, not just the repo-local wrapper script.
+
 ## Quick Start
 
 ```bash
@@ -55,6 +65,7 @@ Start a reusable named websocket session:
 - Transport: `bytes`
 - Model: `sonic-3`
 - Language: `en`
+- Default voice: `Charlotte - Heiress` (`71a7ad14-091c-4e8e-a314-022ece01c121`)
 - Output format: `wav` / `pcm_s16le` / `44100`
 - MP3 bit rate: `128000`
 - Playback: enabled by default through `ffplay`
@@ -65,8 +76,9 @@ Voice resolution order for `say`:
 1. `--voice`
 2. `--voice-query`
 3. `SPITTER_VOICE_ID`
-4. First owned voice for the requested language
-5. First public voice for the requested language
+4. Built-in default `Charlotte - Heiress`
+5. First owned voice for the requested language if Charlotte is unavailable
+6. First public voice for the requested language
 
 ## Useful Commands
 

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spitter"
+version = "0.1.0"
+description = "Self-documenting Cartesia speech CLI with websocket sessions"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [
+  { name = "Morty" }
+]
+license = "MIT"
+keywords = ["cartesia", "tts", "cli", "speech", "websocket"]
+classifiers = [
+  "Environment :: Console",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Sound/Audio :: Speech",
+  "Topic :: Utilities",
+]
+
+[project.scripts]
+spitter = "spitter:main"
+
+[tool.setuptools]
+py-modules = ["spitter", "spitter_ws"]

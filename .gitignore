@@ -1,6 +1,12 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+build/
+dist/
+*.egg-info/
+pkg/
+src/
+*.pkg.tar.zst
 token.txt
 spitter-*.wav
 spitter-*.raw

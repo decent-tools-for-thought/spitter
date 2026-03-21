@@ -24,6 +24,11 @@ class SpitterTests(unittest.TestCase):
         settings = spitter.get_runtime_settings()
         self.assertEqual(spitter.load_api_key(settings), "from-env")
 
+    def test_runtime_settings_default_to_charlotte(self) -> None:
+        settings = spitter.get_runtime_settings()
+        self.assertEqual(settings.default_voice_id, spitter.DEFAULT_VOICE_ID)
+        self.assertEqual(settings.default_voice_source, "builtin")
+
     def test_load_api_key_reads_token_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             token_path = Path(directory) / "token.txt"

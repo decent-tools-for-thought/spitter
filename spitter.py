@@ -35,6 +35,8 @@ DEFAULT_BASE_URL = "https://api.cartesia.ai"
 DEFAULT_API_VERSION = "2026-03-01"
 DEFAULT_MODEL_ID = "sonic-3"
 DEFAULT_LANGUAGE = "en"
+DEFAULT_VOICE_ID = "71a7ad14-091c-4e8e-a314-022ece01c121"
+DEFAULT_VOICE_NAME = "Charlotte - Heiress"
 DEFAULT_TRANSPORT = "bytes"
 DEFAULT_CONTAINER = "wav"
 DEFAULT_ENCODING = "pcm_s16le"
@@ -108,6 +110,7 @@ class RuntimeSettings:
     default_model_id: str
     default_language: str
     default_voice_id: str | None
+    default_voice_source: str
     ffplay_path: str | None
     session_root: Path
     default_session_idle_timeout_seconds: int
@@ -134,7 +137,8 @@ def get_runtime_settings() -> RuntimeSettings:
         api_version=os.getenv("CARTESIA_API_VERSION", DEFAULT_API_VERSION),
         default_model_id=os.getenv("SPITTER_MODEL_ID", DEFAULT_MODEL_ID),
         default_language=os.getenv("SPITTER_LANGUAGE", DEFAULT_LANGUAGE),
-        default_voice_id=os.getenv("SPITTER_VOICE_ID") or None,
+        default_voice_id=os.getenv("SPITTER_VOICE_ID") or DEFAULT_VOICE_ID,
+        default_voice_source="env" if os.getenv("SPITTER_VOICE_ID") else "builtin",
         ffplay_path=shutil.which("ffplay"),
         session_root=get_session_root(),
         default_session_idle_timeout_seconds=idle_timeout,
@@ -563,7 +567,12 @@ def resolve_voice(
         )
 
     if settings.default_voice_id:
-        return client.get_voice(settings.default_voice_id)
+        if settings.default_voice_source == "env":
+            return client.get_voice(settings.default_voice_id)
+        try:
+            return client.get_voice(settings.default_voice_id)
+        except SpitterError:
+            pass
 
     for owner_only in (True, None):
         payload = client.list_voices(limit=1, is_owner=owner_only, language=language)
@@ -666,6 +675,8 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
             "transport": DEFAULT_TRANSPORT,
             "model_id": settings.default_model_id,
             "language": settings.default_language,
+            "voice_id": settings.default_voice_id,
+            "voice_name": DEFAULT_VOICE_NAME,
             "container": DEFAULT_CONTAINER,
             "encoding": DEFAULT_ENCODING,
             "sample_rate": DEFAULT_SAMPLE_RATE,
@@ -688,7 +699,8 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
             "--voice",
             "--voice-query",
             "SPITTER_VOICE_ID",
-            "first owned voice for the requested language",
+            f"built-in default voice {DEFAULT_VOICE_NAME} ({DEFAULT_VOICE_ID})",
+            "first owned voice for the requested language if the built-in default is unavailable",
             "first public voice for the requested language",
         ],
         "transport_model": {
@@ -1494,7 +1506,7 @@ def build_parser(settings: RuntimeSettings) -> argparse.ArgumentParser:
         description=(
             "Generate speech through Cartesia POST /tts/bytes or websocket streaming.\n"
             "Voice resolution order: --voice, --voice-query, SPITTER_VOICE_ID, "
-            "first owned voice, first public voice."
+            f"built-in {DEFAULT_VOICE_NAME}, first owned voice, first public voice."
         ),
     )
     say_parser.add_argument("text", nargs="?", help="Transcript to speak. Use - to read stdin.")
