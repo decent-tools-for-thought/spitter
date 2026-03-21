@@ -45,20 +45,41 @@ jobs:
           mkdir -p dist
           python scripts/build_release_archive.py \
             --version "${{ steps.version.outputs.version }}" \
-            --output "dist/spitter-${{ steps.version.outputs.version }}.tar.gz" \
-            > dist/spitter-${{ steps.version.outputs.version }}.tar.gz.sha256.tmp
-          checksum="$(cat dist/spitter-${{ steps.version.outputs.version }}.tar.gz.sha256.tmp)"
-          printf "%s  spitter-%s.tar.gz\n" "$checksum" "${{ steps.version.outputs.version }}" \
-            > "dist/spitter-${{ steps.version.outputs.version }}.tar.gz.sha256"
-          rm "dist/spitter-${{ steps.version.outputs.version }}.tar.gz.sha256.tmp"
+            --output "dist/spitter-${{ steps.version.outputs.version }}-release-source.tar.gz" \
+            > dist/spitter-${{ steps.version.outputs.version }}-release-source.tar.gz.sha256.tmp
+          checksum="$(cat dist/spitter-${{ steps.version.outputs.version }}-release-source.tar.gz.sha256.tmp)"
+          printf "%s  spitter-%s-release-source.tar.gz\n" "$checksum" "${{ steps.version.outputs.version }}" \
+            > "dist/spitter-${{ steps.version.outputs.version }}-release-source.tar.gz.sha256"
+          rm "dist/spitter-${{ steps.version.outputs.version }}-release-source.tar.gz.sha256.tmp"
 
-      - name: Build wheel
-        run: python -m build --wheel --no-isolation
+      - name: Build Python distributions
+        run: python -m build --sdist --wheel --no-isolation
+
+      - name: Verify built distributions in fresh environments
+        run: |
+          python -m venv .venv-release-wheel
+          . .venv-release-wheel/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install "dist/spitter-${{ steps.version.outputs.version }}-py3-none-any.whl"
+          python -c "import spitter"
+          spitter --help > /dev/null
+          spitter describe say > /dev/null
+          deactivate
+
+          python -m venv .venv-release-sdist
+          . .venv-release-sdist/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --no-build-isolation --no-deps \
+            "dist/spitter-${{ steps.version.outputs.version }}.tar.gz"
+          python -c "import spitter"
+          spitter --help > /dev/null
+          spitter describe say > /dev/null
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/spitter-${{ steps.version.outputs.version }}.tar.gz
-            dist/spitter-${{ steps.version.outputs.version }}.tar.gz.sha256
+            dist/spitter-${{ steps.version.outputs.version }}-release-source.tar.gz
+            dist/spitter-${{ steps.version.outputs.version }}-release-source.tar.gz.sha256
             dist/spitter-${{ steps.version.outputs.version }}-py3-none-any.whl

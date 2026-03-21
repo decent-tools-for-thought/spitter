@@ -30,6 +30,7 @@ Release asset naming is stable:
 
 ```text
 spitter-<version>.tar.gz
+spitter-<version>-release-source.tar.gz
 spitter-<version>-py3-none-any.whl
 ```
 
