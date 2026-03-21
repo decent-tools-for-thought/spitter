@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import re
@@ -48,7 +49,7 @@ DEFAULT_TIMEOUT_SECONDS = 60
 DEFAULT_MP3_BIT_RATE = 128000
 DEFAULT_SESSION_IDLE_TIMEOUT_SECONDS = 90
 DEFAULT_AUDIO_CHECK = "enforce"
-USER_AGENT = "spitter/0.2"
+USER_AGENT = "spitter/0.1.1"
 
 SUPPORTED_TRANSPORTS = ("bytes", "websocket")
 SUPPORTED_CONTAINERS = ("wav", "raw", "mp3")
@@ -160,6 +161,34 @@ def load_api_key(settings: RuntimeSettings) -> str:
         "No Cartesia API key found. Set CARTESIA_API_KEY or create "
         f"{settings.token_file}."
     )
+
+
+def write_token_file(path: Path, token: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(token.strip() + "\n", encoding="utf-8")
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def resolve_login_token(args: argparse.Namespace) -> str:
+    token_sources = sum(
+        1 for enabled in (bool(args.token), bool(args.stdin)) if enabled
+    )
+    if token_sources > 1:
+        raise SpitterError("Choose only one token source: --token or --stdin.")
+
+    if args.token:
+        token = args.token.strip()
+    elif args.stdin:
+        token = sys.stdin.read().strip()
+    else:
+        token = getpass.getpass("Cartesia API token: ").strip()
+
+    if not token:
+        raise SpitterError("Token is empty.")
+    return token
 
 
 def normalize_query_value(value: Any) -> Any:
@@ -782,6 +811,19 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
         ],
         "commands": [
             {
+                "name": "login",
+                "summary": (
+                    "Persist a Cartesia API token to the configured token file so later "
+                    "commands can authenticate without inline secrets."
+                ),
+                "examples": [
+                    "./spitter login",
+                    "./spitter login --token <cartesia-token>",
+                    "pass show cartesia/token | ./spitter login --stdin --validate",
+                ],
+                "options": ["--token", "--stdin", "--validate", "--json"],
+            },
+            {
                 "name": "say",
                 "summary": (
                     "Generate speech through POST /tts/bytes or websocket streaming. "
@@ -954,6 +996,50 @@ def filter_schema(schema: dict[str, Any], topic: str | None) -> dict[str, Any]:
 def handle_describe(args: argparse.Namespace, settings: RuntimeSettings) -> int:
     schema = filter_schema(describe_command_schema(settings), args.topic)
     print_json(schema)
+    return 0
+
+
+def handle_login(args: argparse.Namespace, settings: RuntimeSettings) -> int:
+    token = resolve_login_token(args)
+    write_token_file(settings.token_file, token)
+
+    validation = {
+        "requested": args.validate,
+        "ok": None,
+        "detail": None,
+    }
+    if args.validate:
+        try:
+            client = CartesiaClient(settings, token)
+            client.list_voices(limit=1, language=settings.default_language)
+        except SpitterError as exc:
+            validation["ok"] = False
+            validation["detail"] = str(exc)
+            if not args.json:
+                print(
+                    f"Token saved to {settings.token_file}, but validation failed: {exc}"
+                )
+            return 1
+        validation["ok"] = True
+        validation["detail"] = "Cartesia API accepted the token."
+
+    result = {
+        "command": "login",
+        "token_file": str(settings.token_file),
+        "token_file_exists": settings.token_file.exists(),
+        "validation": validation,
+    }
+    if args.json:
+        print_json(result)
+    else:
+        message = f"Saved Cartesia token to {settings.token_file}."
+        if validation["ok"]:
+            message += " Validation succeeded."
+        elif validation["requested"]:
+            message += f" Validation failed: {validation['detail']}"
+        else:
+            message += " Validation was skipped."
+        print(message)
     return 0
 
 
@@ -1475,6 +1561,7 @@ def build_parser(settings: RuntimeSettings) -> argparse.ArgumentParser:
             "Cartesia text-to-speech CLI for agents.\n\n"
             "Default behavior:\n"
             "- reads CARTESIA_API_KEY or repo-local token.txt\n"
+            "- can write token.txt through `spitter login`\n"
             f"- uses Cartesia API version {settings.api_version}\n"
             "- defaults to POST /tts/bytes\n"
             "- can stream over websocket directly or through named local sessions\n"
@@ -1489,6 +1576,7 @@ def build_parser(settings: RuntimeSettings) -> argparse.ArgumentParser:
               {DOCS["voices"]}
 
             Examples:
+              ./spitter login --validate
               ./spitter say "Build finished."
               ./spitter say "Use websocket now." --transport websocket
               ./spitter sessions start default
@@ -1498,6 +1586,37 @@ def build_parser(settings: RuntimeSettings) -> argparse.ArgumentParser:
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    login_parser = subparsers.add_parser(
+        "login",
+        formatter_class=HelpFormatter,
+        help="Persist a Cartesia API token to the configured token file.",
+        description=(
+            "Save a Cartesia API token to the configured token file so later commands "
+            "can authenticate without inline secrets.\n"
+            f"Default token path: {settings.token_file}"
+        ),
+    )
+    login_parser.add_argument(
+        "--token",
+        help="Token value provided directly on the command line.",
+    )
+    login_parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read the token from stdin.",
+    )
+    login_parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate the token immediately by making a lightweight Cartesia API call.",
+    )
+    login_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print a JSON result object.",
+    )
+    login_parser.set_defaults(handler=handle_login)
 
     say_parser = subparsers.add_parser(
         "say",

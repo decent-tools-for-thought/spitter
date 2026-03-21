@@ -33,6 +33,12 @@ Tagging `v<version>` publishes those artifacts through the included GitHub Actio
 
 ## Quick Start
 
+Log in once and persist the token locally:
+
+```bash
+spitter login --validate
+```
+
 ```bash
 spitter say "Build finished."
 ```
@@ -53,6 +59,12 @@ Inspect the command contract as JSON:
 
 ```bash
 spitter describe
+```
+
+Provide the token non-interactively:
+
+```bash
+pass show cartesia/token | spitter login --stdin --validate
 ```
 
 Stream directly over websocket:
@@ -136,6 +148,12 @@ Get voice details:
 spitter voices get <voice-id>
 ```
 
+Write the token directly:
+
+```bash
+spitter login --token <cartesia-token> --validate
+```
+
 ## Environment Variables
 
 - `CARTESIA_API_KEY`: preferred token source
@@ -169,6 +187,7 @@ If you want the exact command contract and runtime defaults, prefer:
 
 ```bash
 spitter describe
+spitter describe login
 spitter describe say
 spitter describe sessions
 ```

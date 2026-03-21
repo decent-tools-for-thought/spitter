@@ -37,6 +37,29 @@ class SpitterTests(unittest.TestCase):
             settings = spitter.get_runtime_settings()
             self.assertEqual(spitter.load_api_key(settings), "from-file")
 
+    def test_handle_login_writes_token_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            token_path = Path(directory) / "token.txt"
+            os.environ["SPITTER_TOKEN_FILE"] = str(token_path)
+            settings = spitter.get_runtime_settings()
+            args = mock.Mock(token="from-login", stdin=False, validate=False, json=False)
+            exit_code = spitter.handle_login(args, settings)
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(token_path.read_text(encoding="utf-8"), "from-login\n")
+
+    @mock.patch("sys.stdin", new_callable=io.StringIO)
+    def test_handle_login_reads_stdin(self, stdin: io.StringIO) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            token_path = Path(directory) / "token.txt"
+            os.environ["SPITTER_TOKEN_FILE"] = str(token_path)
+            stdin.write("stdin-token\n")
+            stdin.seek(0)
+            settings = spitter.get_runtime_settings()
+            args = mock.Mock(token=None, stdin=True, validate=False, json=False)
+            exit_code = spitter.handle_login(args, settings)
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(token_path.read_text(encoding="utf-8"), "stdin-token\n")
+
     def test_build_tts_request_uses_expected_shape(self) -> None:
         output_format = spitter.build_output_format(
             transport="bytes",
@@ -71,6 +94,12 @@ class SpitterTests(unittest.TestCase):
         filtered = spitter.filter_schema(schema, "voices")
         command_names = [command["name"] for command in filtered["commands"]]
         self.assertEqual(command_names, ["voices list", "voices get"])
+
+    def test_filter_schema_can_find_login(self) -> None:
+        schema = spitter.describe_command_schema(spitter.get_runtime_settings())
+        filtered = spitter.filter_schema(schema, "login")
+        command_names = [command["name"] for command in filtered["commands"]]
+        self.assertEqual(command_names, ["login"])
 
     def test_websocket_output_rejects_wav(self) -> None:
         with self.assertRaises(spitter.SpitterError):

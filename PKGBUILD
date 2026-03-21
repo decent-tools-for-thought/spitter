@@ -1,5 +1,5 @@
 pkgname=spitter
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc="Self-documenting Cartesia speech CLI with websocket sessions"
 arch=('any')
@@ -8,7 +8,7 @@ license=('MIT')
 depends=('python' 'ffmpeg' 'pipewire' 'libpulse')
 makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/decent-tools-for-thought/spitter/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz")
-sha256sums=('1aafefa35713ccc382dd67a9b46eb2ceead7fb5f65bae042dd062ce387b537c6')
+sha256sums=('82f4087dbcce7460a73bdc7d00251cdd80eba98e2756dba313c10d940c33ab54')
 
 build() {
   cd "$srcdir/$pkgname-$pkgver"
