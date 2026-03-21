@@ -12,50 +12,61 @@ Cartesia does ship a separate CLI for Line voice agents, but that is aimed at bu
 
 ## Install
 
-Local Arch package build:
+Arch install from the GitHub-hosted package metadata:
 
 ```bash
+git clone https://github.com/decent-tools-for-thought/spitter.git
+cd spitter
 makepkg -si
 ```
 
-This installs a real `spitter` console command from the Python package entry point, not just the repo-local wrapper script.
+The `PKGBUILD` downloads the versioned release archive from GitHub Releases, verifies its checksum, builds the wheel, and installs the real `spitter` console command from the Python package entry point.
+
+Release asset naming is stable:
+
+```text
+spitter-<version>.tar.gz
+spitter-<version>-py3-none-any.whl
+```
+
+Tagging `v<version>` publishes those artifacts through the included GitHub Actions workflow.
 
 ## Quick Start
 
 ```bash
-./spitter say "Build finished."
+spitter say "Build finished."
 ```
 
 Pipe text from another command:
 
 ```bash
-echo "Tea is ready." | ./spitter say --stdin
+echo "Tea is ready." | spitter say --stdin
 ```
 
 List voices:
 
 ```bash
-./spitter voices list --language en --query narrator
+spitter voices list --language en --query narrator
 ```
 
 Inspect the command contract as JSON:
 
 ```bash
-./spitter describe
+spitter describe
 ```
 
 Stream directly over websocket:
 
 ```bash
-./spitter say "Tell me now." --transport websocket --container raw
+spitter say "Tell me now." --transport websocket --container raw
 ```
 
 Start a reusable named websocket session:
 
 ```bash
-./spitter sessions start default
-./spitter say "Low-latency reply." --transport websocket --container raw --session default
-./spitter sessions stop default
+spitter sessions start default
+spitter say "Low-latency reply." --transport websocket --container raw --session default
+spitter sessions stop default
 ```
 
 ## Defaults
@@ -85,44 +96,44 @@ Voice resolution order for `say`:
 Speak with an explicit voice:
 
 ```bash
-./spitter say "Stand-up starts in five minutes." --voice <voice-id>
+spitter say "Stand-up starts in five minutes." --voice <voice-id>
 ```
 
 Save bytes output without playing it:
 
 ```bash
-./spitter say "Leave this on disk." --no-play --output /tmp/notice.wav
+spitter say "Leave this on disk." --no-play --output /tmp/notice.wav
 ```
 
 Save MP3 output without playing it:
 
 ```bash
-./spitter say "Export MP3." --container mp3 --bit-rate 128000 --no-play --output /tmp/notice.mp3
+spitter say "Export MP3." --container mp3 --bit-rate 128000 --no-play --output /tmp/notice.mp3
 ```
 
 Stream raw audio over websocket without playback:
 
 ```bash
-./spitter say "Stream to disk." --transport websocket --container raw --no-play --output /tmp/notice.raw
+spitter say "Stream to disk." --transport websocket --container raw --no-play --output /tmp/notice.raw
 ```
 
 Inspect websocket session status:
 
 ```bash
-./spitter sessions get default
-./spitter sessions list
+spitter sessions get default
+spitter sessions list
 ```
 
 Inspect the exact API request without sending it:
 
 ```bash
-./spitter say "Dry run." --dry-run --json
+spitter say "Dry run." --dry-run --json
 ```
 
 Get voice details:
 
 ```bash
-./spitter voices get <voice-id>
+spitter voices get <voice-id>
 ```
 
 ## Environment Variables
@@ -157,9 +168,9 @@ Get voice details:
 If you want the exact command contract and runtime defaults, prefer:
 
 ```bash
-./spitter describe
-./spitter describe say
-./spitter describe sessions
+spitter describe
+spitter describe say
+spitter describe sessions
 ```
 
 ## Audio Output Preflight
@@ -174,8 +185,8 @@ When playback is enabled, `spitter` now checks the local default sink before it 
 Override behavior when needed:
 
 ```bash
-./spitter say "Warn but continue." --audio-check warn
-./spitter say "Ignore sink state." --audio-check ignore
+spitter say "Warn but continue." --audio-check warn
+spitter say "Ignore sink state." --audio-check ignore
 ```
 
 You can also set the default policy through:
