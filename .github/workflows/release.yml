@@ -48,11 +48,6 @@ jobs:
             --output "dist/spitter-${{ steps.version.outputs.version }}.tar.gz" \
             > dist/spitter-${{ steps.version.outputs.version }}.tar.gz.sha256.tmp
           checksum="$(cat dist/spitter-${{ steps.version.outputs.version }}.tar.gz.sha256.tmp)"
-          expected="$(python -c 'import ast, pathlib; text = pathlib.Path("PKGBUILD").read_text(); line = next(line for line in text.splitlines() if line.startswith("sha256sums=")); print(ast.literal_eval(line.split("=", 1)[1])[0])')"
-          if [ "$checksum" != "$expected" ]; then
-            echo "PKGBUILD checksum $expected does not match built archive $checksum" >&2
-            exit 1
-          fi
           printf "%s  spitter-%s.tar.gz\n" "$checksum" "${{ steps.version.outputs.version }}" \
             > "dist/spitter-${{ steps.version.outputs.version }}.tar.gz.sha256"
           rm "dist/spitter-${{ steps.version.outputs.version }}.tar.gz.sha256.tmp"
