@@ -1585,7 +1585,7 @@ def build_parser(settings: RuntimeSettings) -> argparse.ArgumentParser:
             """
         ),
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command")
 
     login_parser = subparsers.add_parser(
         "login",
@@ -1755,7 +1755,7 @@ def build_parser(settings: RuntimeSettings) -> argparse.ArgumentParser:
         formatter_class=HelpFormatter,
         help="Manage local websocket session daemons.",
     )
-    sessions_subparsers = sessions_parser.add_subparsers(dest="sessions_command", required=True)
+    sessions_subparsers = sessions_parser.add_subparsers(dest="sessions_command")
 
     sessions_start_parser = sessions_subparsers.add_parser(
         "start",
@@ -1819,7 +1819,7 @@ def build_parser(settings: RuntimeSettings) -> argparse.ArgumentParser:
         formatter_class=HelpFormatter,
         help="Inspect available voices.",
     )
-    voices_subparsers = voices_parser.add_subparsers(dest="voices_command", required=True)
+    voices_subparsers = voices_parser.add_subparsers(dest="voices_command")
 
     voices_list_parser = voices_subparsers.add_parser(
         "list",
@@ -1918,6 +1918,23 @@ def main(argv: list[str] | None = None) -> int:
         return internal_result
     parser = build_parser(settings)
     args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help()
+        return 0
+    if args.command == "sessions" and args.sessions_command is None:
+        next(
+            action
+            for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)
+        ).choices["sessions"].print_help()
+        return 0
+    if args.command == "voices" and args.voices_command is None:
+        next(
+            action
+            for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)
+        ).choices["voices"].print_help()
+        return 0
     try:
         return args.handler(args, settings)
     except SpitterError as exc:
