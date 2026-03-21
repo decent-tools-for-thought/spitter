@@ -5,7 +5,6 @@ build/
 dist/
 *.egg-info/
 pkg/
-src/
 *.pkg.tar.zst
 token.txt
 spitter-*.wav

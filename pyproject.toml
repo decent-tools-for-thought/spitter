@@ -22,7 +22,10 @@ classifiers = [
 ]
 
 [project.scripts]
-spitter = "spitter:main"
+spitter = "spitter.cli:main"
 
 [tool.setuptools]
-py-modules = ["spitter", "spitter_ws"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

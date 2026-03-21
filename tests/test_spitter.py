@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import io
 import os
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 import spitter
 
@@ -111,7 +117,7 @@ class SpitterTests(unittest.TestCase):
                 bit_rate=128000,
             )
 
-    @mock.patch("spitter.run_local_command")
+    @mock.patch("spitter.core.run_local_command")
     def test_probe_audio_output_status_notices_muted_wpctl(self, run_local_command: mock.Mock) -> None:
         run_local_command.side_effect = [
             mock.Mock(returncode=0, stdout="Volume: 0.75 [MUTED]\n", stderr=""),
@@ -123,7 +129,7 @@ class SpitterTests(unittest.TestCase):
         self.assertFalse(status.ok_for_playback)
         self.assertEqual(status.sink, "alsa_output.test")
 
-    @mock.patch("spitter.probe_audio_output_status")
+    @mock.patch("spitter.core.probe_audio_output_status")
     def test_enforce_audio_output_policy_refuses_muted_sink(
         self,
         probe_audio_output_status: mock.Mock,
