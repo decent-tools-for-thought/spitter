@@ -7,7 +7,7 @@
 Text-to-speech CLI for Cartesia with local playback, bytes mode, and reusable websocket sessions.
 
 > [!IMPORTANT]
-> This codebase is largely AI-generated. It is useful to me, I hope it might be useful to others, and issues and contributions are welcome.
+> This codebase is entirely AI-generated. It is useful to me, I hope it might be useful to others, and issues and contributions are welcome.
 
 ## Why This Exists
 
