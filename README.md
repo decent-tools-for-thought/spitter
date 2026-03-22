@@ -1,239 +1,84 @@
 # spitter
 
-`spitter` is a Cartesia text-to-speech CLI for humans and coding agents. It wraps the Cartesia `GET /voices`, `GET /voices/{id}`, `POST /tts/bytes`, and websocket TTS endpoints behind a stable command-line contract and a machine-readable `describe` command.
+[![Release](https://img.shields.io/github/v/release/decent-tools-for-thought/spitter?sort=semver)](https://github.com/decent-tools-for-thought/spitter/releases)
+![Python](https://img.shields.io/badge/python-3.13%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-Cartesia does ship a separate CLI for Line voice agents, but that is aimed at building and deploying hosted agents rather than simple local text-to-speech playback. This repo fills that gap for "say this out loud on this machine" workflows.
+Text-to-speech CLI for Cartesia with local playback, bytes mode, and reusable websocket sessions.
 
-## Requirements
+> [!IMPORTANT]
+> This codebase is largely AI-generated. It is useful to me, I hope it might be useful to others, and issues and contributions are welcome.
 
-- Python 3.13+
-- `ffplay` for local playback
-- A Cartesia API key in `CARTESIA_API_KEY` or the default credential file at `~/.config/spitter/cartesia-api-key`
+## Why This Exists
+
+- Speak text locally without building a larger hosted voice stack.
+- Support one-shot synthesis and lower-latency websocket workflows.
+- Give humans and coding agents a stable terminal interface for TTS.
 
 ## Install
 
-Install from a tagged GitHub release artifact:
-
 ```bash
-uv tool install \
-  "https://github.com/decent-tools-for-thought/spitter/releases/download/v0.1.1/spitter-0.1.1-py3-none-any.whl"
+uv tool install .
+spitter --help
 ```
+
+Requirements:
+
+- Python 3.13+
+- `ffplay` for local playback
+- `CARTESIA_API_KEY` or a saved token file
 
 For local development:
 
 ```bash
 uv sync --group dev
 uv run spitter --help
-uv run ruff format --check .
-uv run ruff check .
-uv run mypy
 ```
-
-Release asset naming is stable:
-
-```text
-spitter-<version>.tar.gz
-spitter-<version>-release-source.tar.gz
-spitter-<version>-py3-none-any.whl
-```
-
-Tagging `v<version>` publishes those artifacts from the tagged commit through the included GitHub Actions workflow.
 
 ## Quick Start
 
-Log in once and persist the token locally:
+Log in once:
 
 ```bash
 spitter login --validate
 ```
 
-By default this writes the token to `~/.config/spitter/cartesia-api-key`. If `XDG_CONFIG_HOME` is set, `spitter` uses `$XDG_CONFIG_HOME/spitter/cartesia-api-key` instead. Use `SPITTER_TOKEN_FILE` only when you explicitly want a non-standard path.
+Speak some text:
 
 ```bash
 spitter say "Build finished."
-```
-
-Pipe text from another command:
-
-```bash
 echo "Tea is ready." | spitter say --stdin
 ```
 
-List voices:
+Inspect voices and command metadata:
 
 ```bash
 spitter voices list --language en --query narrator
-```
-
-Inspect the command contract as JSON:
-
-```bash
-spitter describe
-```
-
-Provide the token non-interactively:
-
-```bash
-pass show cartesia/token | spitter login --stdin --validate
-```
-
-Installed-mode smoke checks:
-
-```bash
-spitter --help
 spitter describe say
-spitter login --token <cartesia-token> --validate --json
 ```
 
-Stream directly over websocket:
+Use websocket mode:
 
 ```bash
 spitter say "Tell me now." --transport websocket --container raw
 ```
 
-Start a reusable named websocket session:
+## Configuration
+
+- Default API base URL: `https://api.cartesia.ai`
+- Default model: `sonic-3`
+- Default language: `en`
+- Default transport: `bytes`
+- Default token file: `~/.config/spitter/cartesia-api-key`
+
+## Development
 
 ```bash
-spitter sessions start default
-spitter say "Low-latency reply." --transport websocket --container raw --session default
-spitter sessions stop default
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy
 ```
 
-## Defaults
+## Credits
 
-- API base URL: `https://api.cartesia.ai`
-- Cartesia API version: `2026-03-01`
-- Transport: `bytes`
-- Model: `sonic-3`
-- Language: `en`
-- Default voice: `Charlotte - Heiress` (`71a7ad14-091c-4e8e-a314-022ece01c121`)
-- Output format: `wav` / `pcm_s16le` / `44100`
-- MP3 bit rate: `128000`
-- Playback: enabled by default through `ffplay`
-- Named websocket session idle timeout: `90` seconds
-
-Voice resolution order for `say`:
-
-1. `--voice`
-2. `--voice-query`
-3. `SPITTER_VOICE_ID`
-4. Built-in default `Charlotte - Heiress`
-5. First owned voice for the requested language if Charlotte is unavailable
-6. First public voice for the requested language
-
-## Useful Commands
-
-Speak with an explicit voice:
-
-```bash
-spitter say "Stand-up starts in five minutes." --voice <voice-id>
-```
-
-Save bytes output without playing it:
-
-```bash
-spitter say "Leave this on disk." --no-play --output /tmp/notice.wav
-```
-
-Save MP3 output without playing it:
-
-```bash
-spitter say "Export MP3." --container mp3 --bit-rate 128000 --no-play --output /tmp/notice.mp3
-```
-
-Stream raw audio over websocket without playback:
-
-```bash
-spitter say "Stream to disk." --transport websocket --container raw --no-play --output /tmp/notice.raw
-```
-
-Inspect websocket session status:
-
-```bash
-spitter sessions get default
-spitter sessions list
-```
-
-Inspect the exact API request without sending it:
-
-```bash
-spitter say "Dry run." --dry-run --json
-```
-
-Get voice details:
-
-```bash
-spitter voices get <voice-id>
-```
-
-Write the token directly:
-
-```bash
-spitter login --token <cartesia-token> --validate
-```
-
-## Environment Variables
-
-- `CARTESIA_API_KEY`: preferred token source
-- `SPITTER_TOKEN_FILE`: override the credential file path
-- `CARTESIA_API_VERSION`: override the `Cartesia-Version` header
-- `CARTESIA_BASE_URL`: override the API base URL
-- `SPITTER_MODEL_ID`: override the default model
-- `SPITTER_LANGUAGE`: override the default language
-- `SPITTER_VOICE_ID`: pin a default voice ID
-- `SPITTER_SESSION_DIR`: override the local websocket session directory
-- `SPITTER_SESSION_IDLE_TIMEOUT`: override the default websocket session idle timeout in seconds
-
-## Transport Model
-
-`bytes` mode:
-
-- Simpler one-shot request/response flow
-- Supports `wav`, `raw`, and `mp3`
-- Waits for the full audio response before playback
-- Does not use local sessions
-
-`websocket` mode:
-
-- Streams audio chunks as they arrive
-- Only supports raw audio output from Cartesia
-- Can run directly, or through a named local session daemon
-- Named sessions keep one upstream websocket warm until local idle timeout, then reconnect on demand
-- Each `say` call uses a fresh Cartesia `context_id`; this tool does not currently expose multi-part continuation contexts
-
-If you want the exact command contract and runtime defaults, prefer:
-
-```bash
-spitter describe
-spitter describe login
-spitter describe say
-spitter describe sessions
-```
-
-## Audio Output Preflight
-
-When playback is enabled, `spitter` now checks the local default sink before it talks to Cartesia.
-
-- Default policy: `--audio-check enforce`
-- Refuses playback if the default sink is muted
-- Refuses playback if the default sink volume is `0`
-- Refuses playback if it cannot discover a usable default sink
-
-Override behavior when needed:
-
-```bash
-spitter say "Warn but continue." --audio-check warn
-spitter say "Ignore sink state." --audio-check ignore
-```
-
-You can also set the default policy through:
-
-- `SPITTER_AUDIO_CHECK`
-
-## References
-
-- Cartesia overview: <https://docs.cartesia.ai/get-started/overview>
-- Text-to-speech bytes endpoint: <https://docs.cartesia.ai/api-reference/tts/bytes>
-- Text-to-speech websocket endpoint: <https://docs.cartesia.ai/api-reference/tts/websocket>
-- Compare TTS endpoints: <https://docs.cartesia.ai/api-reference/tts/compare-tts-endpoints>
-- Voice list endpoint: <https://docs.cartesia.ai/api-reference/voices/list>
+This client builds on the Cartesia speech API. Credit goes to Cartesia for the underlying voices, synthesis endpoints, and realtime transport model this tool wraps.
