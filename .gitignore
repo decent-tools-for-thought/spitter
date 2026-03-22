@@ -11,3 +11,4 @@ spitter-*.wav
 spitter-*.raw
 spitter-*.mp3
 .venv/
+QUALITY_ROADMAP.md
