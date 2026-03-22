@@ -22,8 +22,11 @@ uv tool install \
 For local development:
 
 ```bash
-uv sync
+uv sync --group dev
 uv run spitter --help
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy
 ```
 
 Release asset naming is stable:
@@ -43,6 +46,8 @@ Log in once and persist the token locally:
 ```bash
 spitter login --validate
 ```
+
+By default this writes the token to `~/.config/spitter/cartesia-api-key`. If `XDG_CONFIG_HOME` is set, `spitter` uses `$XDG_CONFIG_HOME/spitter/cartesia-api-key` instead. Use `SPITTER_TOKEN_FILE` only when you explicitly want a non-standard path.
 
 ```bash
 spitter say "Build finished."
@@ -70,6 +75,14 @@ Provide the token non-interactively:
 
 ```bash
 pass show cartesia/token | spitter login --stdin --validate
+```
+
+Installed-mode smoke checks:
+
+```bash
+spitter --help
+spitter describe say
+spitter login --token <cartesia-token> --validate --json
 ```
 
 Stream directly over websocket:

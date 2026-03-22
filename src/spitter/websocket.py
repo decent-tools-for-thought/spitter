@@ -13,7 +13,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 
@@ -35,11 +35,7 @@ class SessionPaths:
 
 
 def sanitize_session_name(name: str) -> str:
-    cleaned = "".join(
-        character
-        for character in name
-        if character.isalnum() or character in ("-", "_", ".")
-    )
+    cleaned = "".join(character for character in name if character.isalnum() or character in ("-", "_", "."))
     cleaned = cleaned.strip(".")
     if not cleaned:
         raise WebSocketError("Session names may only use letters, numbers, ., _, and -.")
@@ -65,9 +61,7 @@ def get_session_paths(name: str) -> SessionPaths:
 def build_websocket_url(base_url: str) -> str:
     parsed = urlparse(base_url)
     if parsed.scheme not in ("https", "http"):
-        raise WebSocketError(
-            f"CARTESIA_BASE_URL must start with http:// or https://, got {base_url!r}."
-        )
+        raise WebSocketError(f"CARTESIA_BASE_URL must start with http:// or https://, got {base_url!r}.")
 
     ws_scheme = "wss" if parsed.scheme == "https" else "ws"
     base_path = parsed.path.rstrip("/")
@@ -93,7 +87,7 @@ def ffmpeg_input_format(encoding: str) -> str:
 def json_copy(data: dict[str, Any] | None) -> dict[str, Any] | None:
     if data is None:
         return None
-    return json.loads(json.dumps(data))
+    return cast(dict[str, Any], json.loads(json.dumps(data)))
 
 
 def merge_timestamp_payload(
@@ -173,9 +167,7 @@ class SimpleWebSocketClient:
 
         accept = headers.get("sec-websocket-accept")
         expected_accept = base64.b64encode(
-            hashlib.sha1(
-                (key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")
-            ).digest()
+            hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")).digest()
         ).decode("ascii")
         if accept != expected_accept:
             raise WebSocketError("WebSocket upgrade failed: invalid accept header.")
@@ -216,9 +208,7 @@ class SimpleWebSocketClient:
                         close_code = int.from_bytes(payload[:2], "big")
                         close_reason = payload[2:].decode("utf-8", errors="replace")
                     self.close()
-                    raise WebSocketClosedError(
-                        f"Remote websocket closed ({close_code}): {close_reason}"
-                    )
+                    raise WebSocketClosedError(f"Remote websocket closed ({close_code}): {close_reason}")
                 if opcode == 0x9:
                     self._send_frame(0xA, payload)
                     continue
@@ -268,9 +258,7 @@ class SimpleWebSocketClient:
         else:
             header = bytes([first_byte, 0x80 | 127]) + payload_length.to_bytes(8, "big")
 
-        masked_payload = bytes(
-            payload[index] ^ mask_key[index % 4] for index in range(payload_length)
-        )
+        masked_payload = bytes(payload[index] ^ mask_key[index % 4] for index in range(payload_length))
         self.sock.sendall(header + mask_key + masked_payload)
 
     def _read_http_headers(self) -> bytes:
@@ -330,9 +318,7 @@ class SimpleWebSocketClient:
         mask_key = self._read_exactly(4) if masked else b""
         payload = self._read_exactly(payload_length)
         if masked:
-            payload = bytes(
-                payload[index] ^ mask_key[index % 4] for index in range(payload_length)
-            )
+            payload = bytes(payload[index] ^ mask_key[index % 4] for index in range(payload_length))
         return opcode, payload, finished
 
 
@@ -364,9 +350,7 @@ class StreamAudioSink:
 
         if self.play_requested:
             if not self.ffplay_path:
-                raise WebSocketError(
-                    "ffplay is required for websocket playback. Use --no-play or install ffmpeg."
-                )
+                raise WebSocketError("ffplay is required for websocket playback. Use --no-play or install ffmpeg.")
             self._player = subprocess.Popen(
                 [
                     self.ffplay_path,

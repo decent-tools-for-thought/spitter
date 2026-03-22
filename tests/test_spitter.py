@@ -8,6 +8,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
+from urllib.error import HTTPError, URLError
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -16,6 +17,7 @@ if str(SRC) not in sys.path:
 
 import spitter
 import spitter.core as spitter_core
+import spitter.websocket as spitter_websocket
 
 
 class SpitterTests(unittest.TestCase):
@@ -40,6 +42,22 @@ class SpitterTests(unittest.TestCase):
         settings = spitter.get_runtime_settings()
         self.assertEqual(settings.token_file, spitter.get_default_token_file())
 
+    def test_default_token_file_uses_xdg_config_home(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            os.environ["XDG_CONFIG_HOME"] = directory
+            self.assertEqual(
+                spitter.get_default_token_file(),
+                Path(directory) / "spitter" / "cartesia-api-key",
+            )
+
+    def test_default_token_file_falls_back_to_home_config(self) -> None:
+        fake_home = Path("/tmp/spitter-home")
+        with mock.patch("spitter.core.Path.home", return_value=fake_home):
+            self.assertEqual(
+                spitter.get_default_token_file(),
+                fake_home / ".config" / "spitter" / "cartesia-api-key",
+            )
+
     def test_load_api_key_reads_token_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             token_path = Path(directory) / "cartesia-api-key"
@@ -58,6 +76,18 @@ class SpitterTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertEqual(token_path.read_text(encoding="utf-8"), "from-login\n")
 
+    def test_handle_login_writes_default_xdg_token_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            os.environ["XDG_CONFIG_HOME"] = directory
+            settings = spitter.get_runtime_settings()
+            args = mock.Mock(token="xdg-login", stdin=False, validate=False, json=False)
+            exit_code = spitter.handle_login(args, settings)
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(
+                (Path(directory) / "spitter" / "cartesia-api-key").read_text(encoding="utf-8"),
+                "xdg-login\n",
+            )
+
     @mock.patch("sys.stdin", new_callable=io.StringIO)
     def test_handle_login_reads_stdin(self, stdin: io.StringIO) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -72,9 +102,7 @@ class SpitterTests(unittest.TestCase):
             self.assertEqual(token_path.read_text(encoding="utf-8"), "stdin-token\n")
 
     @mock.patch("subprocess.Popen")
-    def test_spawn_session_daemon_uses_module_entrypoint(
-        self, popen: mock.Mock
-    ) -> None:
+    def test_spawn_session_daemon_uses_module_entrypoint(self, popen: mock.Mock) -> None:
         settings = spitter.get_runtime_settings()
         process = mock.Mock()
         process.poll.return_value = None
@@ -108,6 +136,16 @@ class SpitterTests(unittest.TestCase):
             [sys.executable, "-m", "spitter", "_sessiond"],
         )
         self.assertNotIn("cwd", kwargs)
+
+    def test_runtime_settings_respect_session_root_and_idle_timeout(self) -> None:
+        os.environ["SPITTER_SESSION_DIR"] = "~/spitter-sessions"
+        os.environ["SPITTER_SESSION_IDLE_TIMEOUT"] = "123"
+        settings = spitter.get_runtime_settings()
+        self.assertEqual(
+            settings.session_root,
+            Path("~/spitter-sessions").expanduser(),
+        )
+        self.assertEqual(settings.default_session_idle_timeout_seconds, 123)
 
     def test_build_tts_request_uses_expected_shape(self) -> None:
         output_format = spitter.build_output_format(
@@ -150,6 +188,26 @@ class SpitterTests(unittest.TestCase):
         command_names = [command["name"] for command in filtered["commands"]]
         self.assertEqual(command_names, ["login"])
 
+    def test_describe_schema_contract_has_expected_command_names(self) -> None:
+        schema = spitter.describe_command_schema(spitter.get_runtime_settings())
+        self.assertEqual(
+            [command["name"] for command in schema["commands"]],
+            [
+                "login",
+                "say",
+                "sessions start",
+                "sessions list",
+                "sessions get",
+                "sessions stop",
+                "voices list",
+                "voices get",
+                "describe",
+            ],
+        )
+        self.assertEqual(schema["defaults"]["audio_check"], spitter.DEFAULT_AUDIO_CHECK)
+        self.assertIn("--session-idle-timeout", schema["commands"][1]["options"])
+        self.assertIn("voice_resolution_order", schema)
+
     def test_websocket_output_rejects_wav(self) -> None:
         with self.assertRaises(spitter.SpitterError):
             spitter.build_output_format(
@@ -171,6 +229,37 @@ class SpitterTests(unittest.TestCase):
         self.assertTrue(status.muted)
         self.assertFalse(status.ok_for_playback)
         self.assertEqual(status.sink, "alsa_output.test")
+
+    @mock.patch("spitter.core.run_local_command")
+    def test_probe_audio_output_status_falls_back_to_pactl(self, run_local_command: mock.Mock) -> None:
+        run_local_command.side_effect = [
+            None,
+            mock.Mock(returncode=0, stdout="alsa_output.test\n", stderr=""),
+            mock.Mock(returncode=0, stdout="Mute: no\n", stderr=""),
+            mock.Mock(
+                returncode=0,
+                stdout="Volume: front-left: 65536 / 100% / 0.00 dB\n",
+                stderr="",
+            ),
+        ]
+        status = spitter.probe_audio_output_status()
+        self.assertEqual(status.backend, "pactl")
+        self.assertEqual(status.sink, "alsa_output.test")
+        self.assertEqual(status.volume, 1.0)
+        self.assertFalse(status.muted)
+        self.assertTrue(status.ok_for_playback)
+
+    @mock.patch("spitter.core.run_local_command")
+    def test_probe_audio_output_status_reports_missing_backend(self, run_local_command: mock.Mock) -> None:
+        run_local_command.side_effect = [
+            mock.Mock(returncode=1, stdout="", stderr="wpctl unavailable\n"),
+            mock.Mock(returncode=1, stdout="", stderr="pactl unavailable\n"),
+        ]
+        status = spitter.probe_audio_output_status()
+        self.assertEqual(status.backend, "none")
+        self.assertFalse(status.available)
+        self.assertIn("wpctl unavailable", status.reason)
+        self.assertIn("pactl unavailable", status.reason)
 
     @mock.patch("spitter.core.probe_audio_output_status")
     def test_enforce_audio_output_policy_refuses_muted_sink(
@@ -195,14 +284,116 @@ class SpitterTests(unittest.TestCase):
         args = mock.Mock(text="-", stdin=False)
         self.assertEqual(spitter.resolve_transcript(args), "hello from stdin")
 
+    def test_http_error_translation_includes_json_detail(self) -> None:
+        settings = spitter.get_runtime_settings()
+        client = spitter_core.CartesiaClient(settings, "test-token")
+        error = HTTPError(
+            url="https://api.cartesia.ai/voices",
+            code=401,
+            msg="Unauthorized",
+            hdrs=None,
+            fp=io.BytesIO(b'{"error":"bad token"}'),
+        )
+        with (
+            mock.patch("spitter.core.urlopen", side_effect=error),
+            self.assertRaises(spitter.SpitterError) as exc_info,
+        ):
+            client.list_voices(limit=1)
+        self.assertIn("Cartesia API error 401 Unauthorized", str(exc_info.exception))
+        self.assertIn("bad token", str(exc_info.exception))
+
+    def test_network_error_translation_includes_url(self) -> None:
+        settings = spitter.get_runtime_settings()
+        client = spitter_core.CartesiaClient(settings, "test-token")
+        with (
+            mock.patch(
+                "spitter.core.urlopen",
+                side_effect=URLError("connection refused"),
+            ),
+            self.assertRaises(spitter.SpitterError) as exc_info,
+        ):
+            client.list_voices(limit=1)
+        self.assertIn(
+            "Network error calling https://api.cartesia.ai/voices?limit=1",
+            str(exc_info.exception),
+        )
+        self.assertIn("connection refused", str(exc_info.exception))
+
+    def test_execute_websocket_say_translates_websocket_error(self) -> None:
+        args = mock.Mock(
+            timestamps="off",
+            output=None,
+            play=False,
+            session=None,
+            session_policy="start",
+            session_idle_timeout=90,
+        )
+        settings = spitter.get_runtime_settings()
+        request_body = {
+            "transcript": "hello",
+            "context_id": "ctx-123",
+            "model_id": "sonic-3",
+        }
+        voice = {"id": "voice-123", "name": "Test Voice", "language": "en"}
+        output_format = {"encoding": "pcm_s16le", "sample_rate": 44100}
+        with (
+            mock.patch(
+                "spitter.core.run_ephemeral_websocket_synthesis",
+                side_effect=spitter_websocket.WebSocketError("upstream websocket failed"),
+            ),
+            self.assertRaises(spitter.SpitterError) as exc_info,
+        ):
+            spitter_core.execute_websocket_say(
+                args=args,
+                settings=settings,
+                api_key="token",
+                request_body=request_body,
+                voice=voice,
+                output_format=output_format,
+            )
+        self.assertEqual(str(exc_info.exception), "upstream websocket failed")
+
+    def test_session_daemon_handles_lifecycle_actions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            paths = spitter_websocket.SessionPaths(
+                root=Path(directory),
+                name="default",
+                socket_path=Path(directory) / "default.sock",
+                state_path=Path(directory) / "default.json",
+                log_path=Path(directory) / "default.log",
+            )
+            with mock.patch("spitter.websocket.CartesiaWebSocketDispatcher") as dispatcher_cls:
+                dispatcher = dispatcher_cls.return_value
+                dispatcher.status.return_value = {"active_context_count": 0}
+                daemon = spitter_websocket.SessionDaemon(
+                    name="default",
+                    paths=paths,
+                    base_url="https://api.cartesia.ai",
+                    api_key="token",
+                    api_version="2026-03-01",
+                    user_agent="spitter/test",
+                    ffplay_path=None,
+                    idle_timeout_seconds=90,
+                )
+            daemon.server = mock.Mock()
+            status_response = daemon.handle_request({"action": "status"})
+            shutdown_response = daemon.handle_request({"action": "shutdown"})
+            invalid_response = daemon.handle_request({"action": "nope"})
+        self.assertTrue(status_response["ok"])
+        self.assertEqual(status_response["status"]["name"], "default")
+        self.assertTrue(shutdown_response["ok"])
+        self.assertTrue(daemon.shutdown_requested.is_set())
+        self.assertFalse(invalid_response["ok"])
+        self.assertIn("Unsupported session action", invalid_response["error"])
+
     def test_describe_outputs_json(self) -> None:
         buffer = io.StringIO()
         with redirect_stdout(buffer):
             exit_code = spitter.main(["describe", "say"])
         self.assertEqual(exit_code, 0)
         output = buffer.getvalue()
-        self.assertIn("\"name\": \"spitter\"", output)
-        self.assertIn("\"commands\"", output)
+        self.assertIn('"name": "spitter"', output)
+        self.assertIn('"commands"', output)
 
 
 if __name__ == "__main__":

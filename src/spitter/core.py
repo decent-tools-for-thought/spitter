@@ -15,7 +15,7 @@ import textwrap
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -128,11 +128,7 @@ def get_default_token_file() -> Path:
 
 def get_runtime_settings() -> RuntimeSettings:
     token_override = os.getenv("SPITTER_TOKEN_FILE")
-    token_file = (
-        Path(token_override).expanduser()
-        if token_override
-        else get_default_token_file()
-    )
+    token_file = Path(token_override).expanduser() if token_override else get_default_token_file()
     idle_timeout = int(
         os.getenv(
             "SPITTER_SESSION_IDLE_TIMEOUT",
@@ -164,10 +160,7 @@ def load_api_key(settings: RuntimeSettings) -> str:
         if file_key:
             return file_key
 
-    raise SpitterError(
-        "No Cartesia API key found. Set CARTESIA_API_KEY or create "
-        f"{settings.token_file}."
-    )
+    raise SpitterError(f"No Cartesia API key found. Set CARTESIA_API_KEY or create {settings.token_file}.")
 
 
 def write_token_file(path: Path, token: str) -> None:
@@ -180,14 +173,12 @@ def write_token_file(path: Path, token: str) -> None:
 
 
 def resolve_login_token(args: argparse.Namespace) -> str:
-    token_sources = sum(
-        1 for enabled in (bool(args.token), bool(args.stdin)) if enabled
-    )
+    token_sources = sum(1 for enabled in (bool(args.token), bool(args.stdin)) if enabled)
     if token_sources > 1:
         raise SpitterError("Choose only one token source: --token or --stdin.")
 
     if args.token:
-        token = args.token.strip()
+        token = str(args.token).strip()
     elif args.stdin:
         token = sys.stdin.read().strip()
     else:
@@ -278,9 +269,7 @@ class CartesiaClient:
         try:
             return json.loads(payload.decode("utf-8"))
         except json.JSONDecodeError as exc:
-            raise SpitterError(
-                f"Expected JSON from {path}, got undecodable payload."
-            ) from exc
+            raise SpitterError(f"Expected JSON from {path}, got undecodable payload.") from exc
 
     def get_bytes(
         self,
@@ -302,7 +291,7 @@ class CartesiaClient:
         language: str | None = None,
         include_preview_url: bool = False,
     ) -> dict[str, Any]:
-        query = {
+        query: dict[str, Any] = {
             "limit": limit,
             "starting_after": starting_after,
             "ending_before": ending_before,
@@ -313,13 +302,16 @@ class CartesiaClient:
         }
         if include_preview_url:
             query["expand[]"] = ["preview_file_url"]
-        return self.get_json("GET", "/voices", query=query)
+        return cast(dict[str, Any], self.get_json("GET", "/voices", query=query))
 
     def get_voice(self, voice_id: str, *, include_preview_url: bool = False) -> dict[str, Any]:
-        query = {}
+        query: dict[str, Any] = {}
         if include_preview_url:
             query["expand[]"] = ["preview_file_url"]
-        return self.get_json("GET", f"/voices/{voice_id}", query=query)
+        return cast(
+            dict[str, Any],
+            self.get_json("GET", f"/voices/{voice_id}", query=query),
+        )
 
     def tts_bytes(self, body: dict[str, Any]) -> tuple[bytes, dict[str, str]]:
         return self.get_bytes("/tts/bytes", body=body)
@@ -395,7 +387,7 @@ def render_session_table(payload: list[dict[str, Any]]) -> str:
 
 def resolve_transcript(args: argparse.Namespace) -> str:
     if args.text and args.text != "-":
-        return args.text.strip()
+        return str(args.text).strip()
 
     should_read_stdin = args.stdin or args.text == "-" or not sys.stdin.isatty()
     if should_read_stdin:
@@ -403,9 +395,7 @@ def resolve_transcript(args: argparse.Namespace) -> str:
         if transcript:
             return transcript
 
-    raise SpitterError(
-        "No transcript provided. Pass text as an argument or pipe it on stdin."
-    )
+    raise SpitterError("No transcript provided. Pass text as an argument or pipe it on stdin.")
 
 
 def choose_output_path(
@@ -505,32 +495,32 @@ def probe_audio_output_status() -> AudioOutputStatus:
     pactl_sink = run_local_command(["pactl", "get-default-sink"])
     if pactl_sink is not None and pactl_sink.returncode == 0:
         sink_name = pactl_sink.stdout.strip() or None
-        mute_output = run_local_command(["pactl", "get-sink-mute", sink_name or ""])
-        volume_output = run_local_command(["pactl", "get-sink-volume", sink_name or ""])
-        muted = None
-        volume = None
+        sink_mute_output = run_local_command(["pactl", "get-sink-mute", sink_name or ""])
+        sink_volume_output = run_local_command(["pactl", "get-sink-volume", sink_name or ""])
+        sink_muted: bool | None = None
+        sink_volume: float | None = None
         reason = "Audio sink status unknown."
 
-        if mute_output is not None and mute_output.returncode == 0:
-            muted = mute_output.stdout.strip().endswith("yes")
-            reason = mute_output.stdout.strip()
+        if sink_mute_output is not None and sink_mute_output.returncode == 0:
+            sink_muted = sink_mute_output.stdout.strip().endswith("yes")
+            reason = sink_mute_output.stdout.strip()
 
-        if volume_output is not None and volume_output.returncode == 0:
-            match = re.search(r"(\d+)%", volume_output.stdout)
+        if sink_volume_output is not None and sink_volume_output.returncode == 0:
+            match = re.search(r"(\d+)%", sink_volume_output.stdout)
             if match:
-                volume = int(match.group(1)) / 100.0
-                reason = volume_output.stdout.strip()
+                sink_volume = int(match.group(1)) / 100.0
+                reason = sink_volume_output.stdout.strip()
 
-        if muted:
+        if sink_muted:
             reason = f"default sink {sink_name} is muted"
-        elif volume is not None and volume <= 0.0:
+        elif sink_volume is not None and sink_volume <= 0.0:
             reason = f"default sink {sink_name} volume is zero"
 
         return AudioOutputStatus(
             backend="pactl",
             sink=sink_name,
-            volume=volume,
-            muted=muted,
+            volume=sink_volume,
+            muted=sink_muted,
             available=True,
             reason=reason,
         )
@@ -571,8 +561,7 @@ def enforce_audio_output_policy(
         return status
 
     raise SpitterError(
-        f"Audio output check failed: {status.reason}. "
-        "Use --audio-check warn or --audio-check ignore to bypass."
+        f"Audio output check failed: {status.reason}. Use --audio-check warn or --audio-check ignore to bypass."
     )
 
 
@@ -597,10 +586,8 @@ def resolve_voice(
             )
             voices = payload.get("data", [])
             if voices:
-                return voices[0]
-        raise SpitterError(
-            f"No voice matched query {voice_query!r} for language {language!r}."
-        )
+                return cast(dict[str, Any], voices[0])
+        raise SpitterError(f"No voice matched query {voice_query!r} for language {language!r}.")
 
     if settings.default_voice_id:
         if settings.default_voice_source == "env":
@@ -614,7 +601,7 @@ def resolve_voice(
         payload = client.list_voices(limit=1, is_owner=owner_only, language=language)
         voices = payload.get("data", [])
         if voices:
-            return voices[0]
+            return cast(dict[str, Any], voices[0])
 
     raise SpitterError("No usable voice found. Run `spitter voices list` and pass --voice.")
 
@@ -630,8 +617,7 @@ def build_output_format(
     if transport == "websocket":
         if container != "raw":
             raise SpitterError(
-                "Cartesia websocket streaming only supports raw audio output. "
-                "Use --transport bytes for wav or mp3."
+                "Cartesia websocket streaming only supports raw audio output. Use --transport bytes for wav or mp3."
             )
         return {
             "container": "raw",
@@ -668,7 +654,7 @@ def build_tts_request(
     context_id: str | None,
     add_timestamps: bool,
 ) -> dict[str, Any]:
-    body = {
+    body: dict[str, Any] = {
         "model_id": model_id,
         "transcript": transcript,
         "voice": {
@@ -764,10 +750,7 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
             {
                 "name": "SPITTER_TOKEN_FILE",
                 "required": False,
-                "purpose": (
-                    "Override the token file path. Defaults to "
-                    f"{settings.token_file}."
-                ),
+                "purpose": (f"Override the token file path. Defaults to {settings.token_file}."),
             },
             {
                 "name": "CARTESIA_API_VERSION",
@@ -811,8 +794,7 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                 "name": "SPITTER_AUDIO_CHECK",
                 "required": False,
                 "purpose": (
-                    "Override the default playback preflight policy. "
-                    f"Defaults to {settings.default_audio_check}."
+                    f"Override the default playback preflight policy. Defaults to {settings.default_audio_check}."
                 ),
             },
         ],
@@ -837,11 +819,11 @@ def describe_command_schema(settings: RuntimeSettings) -> dict[str, Any]:
                     "Websocket mode can optionally reuse a named warm session."
                 ),
                 "examples": [
-                    "spitter say \"Build finished.\"",
-                    "spitter say \"Stream this now.\" --transport websocket",
-                    "spitter say \"Low-latency reply.\" --transport websocket --session default",
-                    "spitter say \"Save MP3 only.\" --container mp3 --bit-rate 128000 --no-play --output /tmp/notice.mp3",
-                    "spitter say \"Inspect the resolved request.\" --dry-run --json",
+                    'spitter say "Build finished."',
+                    'spitter say "Stream this now." --transport websocket',
+                    'spitter say "Low-latency reply." --transport websocket --session default',
+                    'spitter say "Save MP3 only." --container mp3 --bit-rate 128000 --no-play --output /tmp/notice.mp3',
+                    'spitter say "Inspect the resolved request." --dry-run --json',
                 ],
                 "arguments": [
                     {
@@ -993,9 +975,7 @@ def filter_schema(schema: dict[str, Any], topic: str | None) -> dict[str, Any]:
         return schema
     filtered = dict(schema)
     filtered["commands"] = [
-        command
-        for command in schema["commands"]
-        if command["name"] == topic or command["name"].startswith(f"{topic} ")
+        command for command in schema["commands"] if command["name"] == topic or command["name"].startswith(f"{topic} ")
     ]
     return filtered
 
@@ -1023,9 +1003,7 @@ def handle_login(args: argparse.Namespace, settings: RuntimeSettings) -> int:
             validation["ok"] = False
             validation["detail"] = str(exc)
             if not args.json:
-                print(
-                    f"Token saved to {settings.token_file}, but validation failed: {exc}"
-                )
+                print(f"Token saved to {settings.token_file}, but validation failed: {exc}")
             return 1
         validation["ok"] = True
         validation["detail"] = "Cartesia API accepted the token."
@@ -1100,7 +1078,7 @@ def call_session(name: str, request: dict[str, Any]) -> dict[str, Any]:
     if not response:
         raise SpitterError(f"Session {name!r} returned no response.")
     try:
-        return json.loads(response.decode("utf-8"))
+        return cast(dict[str, Any], json.loads(response.decode("utf-8")))
     except json.JSONDecodeError as exc:
         raise SpitterError(f"Session {name!r} returned invalid JSON.") from exc
 
@@ -1109,7 +1087,7 @@ def get_session_status(name: str) -> dict[str, Any]:
     response = call_session(name, {"action": "status"})
     if not response.get("ok"):
         raise SpitterError(response.get("error", "Unknown session error."))
-    return response["status"]
+    return cast(dict[str, Any], response["status"])
 
 
 def spawn_session_daemon(
@@ -1151,17 +1129,13 @@ def spawn_session_daemon(
     deadline = time.time() + 5.0
     while time.time() < deadline:
         if process.poll() is not None:
-            raise SpitterError(
-                f"Session daemon for {name!r} exited early. Check {paths.log_path}."
-            )
+            raise SpitterError(f"Session daemon for {name!r} exited early. Check {paths.log_path}.")
         try:
             return get_session_status(name)
         except SpitterError:
             time.sleep(0.1)
 
-    raise SpitterError(
-        f"Timed out waiting for session {name!r} to start. Check {paths.log_path}."
-    )
+    raise SpitterError(f"Timed out waiting for session {name!r} to start. Check {paths.log_path}.")
 
 
 def ensure_session(
@@ -1192,7 +1166,7 @@ def ensure_session(
 
 
 def list_sessions(settings: RuntimeSettings) -> list[dict[str, Any]]:
-    results = []
+    results: list[dict[str, Any]] = []
     if not settings.session_root.exists():
         return results
 
@@ -1397,7 +1371,7 @@ def execute_websocket_say(
         )
         if not response.get("ok"):
             raise SpitterError(response.get("error", "Unknown session websocket error."))
-        result = response["result"]
+        result = cast(dict[str, Any], response["result"])
     else:
         try:
             result = run_ephemeral_websocket_synthesis(
@@ -1438,10 +1412,7 @@ def format_say_message(result: dict[str, Any]) -> str:
     audio = result["audio"]
 
     if transport == "websocket":
-        message = (
-            f"Streamed with voice {voice.get('name', voice.get('id'))} "
-            f"({voice.get('id')})."
-        )
+        message = f"Streamed with voice {voice.get('name', voice.get('id'))} ({voice.get('id')})."
         if session:
             message += f" Session {session} handled the request."
         if audio.get("output_path"):
@@ -1450,10 +1421,7 @@ def format_say_message(result: dict[str, Any]) -> str:
             message += " Audio was streamed directly to ffplay."
         return message
 
-    message = (
-        f"Spoke with voice {voice.get('name', voice.get('id'))} "
-        f"({voice.get('id')})."
-    )
+    message = f"Spoke with voice {voice.get('name', voice.get('id'))} ({voice.get('id')})."
     if audio.get("temporary_playback_file"):
         message += " Audio was played from a temporary file."
     elif audio.get("output_path"):
@@ -1929,21 +1897,18 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 0
     if args.command == "sessions" and args.sessions_command is None:
-        next(
-            action
-            for action in parser._actions
-            if isinstance(action, argparse._SubParsersAction)
-        ).choices["sessions"].print_help()
+        next(action for action in parser._actions if isinstance(action, argparse._SubParsersAction)).choices[
+            "sessions"
+        ].print_help()
         return 0
     if args.command == "voices" and args.voices_command is None:
-        next(
-            action
-            for action in parser._actions
-            if isinstance(action, argparse._SubParsersAction)
-        ).choices["voices"].print_help()
+        next(action for action in parser._actions if isinstance(action, argparse._SubParsersAction)).choices[
+            "voices"
+        ].print_help()
         return 0
     try:
-        return args.handler(args, settings)
+        handler = cast(Callable[[argparse.Namespace, RuntimeSettings], int], args.handler)
+        return handler(args, settings)
     except SpitterError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

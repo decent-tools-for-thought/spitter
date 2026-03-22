@@ -7,9 +7,8 @@ import hashlib
 import io
 import subprocess
 import tarfile
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 
 def project_version(repo_root: Path) -> str:
@@ -24,11 +23,7 @@ def tracked_files(repo_root: Path) -> list[Path]:
         check=True,
         capture_output=True,
     )
-    return [
-        repo_root / Path(entry.decode("utf-8"))
-        for entry in result.stdout.split(b"\x00")
-        if entry
-    ]
+    return [repo_root / Path(entry.decode("utf-8")) for entry in result.stdout.split(b"\x00") if entry]
 
 
 def build_archive(repo_root: Path, output_path: Path, prefix: str) -> str:

@@ -1,9 +1,8 @@
 """Spitter library package."""
 
 from .core import (
-    AudioOutputStatus,
-    DEFAULT_AUDIO_CHECK,
     DEFAULT_API_VERSION,
+    DEFAULT_AUDIO_CHECK,
     DEFAULT_BASE_URL,
     DEFAULT_CONTAINER,
     DEFAULT_EMOTION,
@@ -19,6 +18,7 @@ from .core import (
     DEFAULT_VOICE_NAME,
     DEFAULT_VOLUME,
     DOCS,
+    AudioOutputStatus,
     SpitterError,
     build_output_format,
     build_tts_request,
