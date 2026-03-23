@@ -14,7 +14,6 @@ Cartesia text-to-speech CLI for saved login, local playback, bytes mode, websock
 > This codebase is entirely AI-generated. It is useful to me, I hope it might be useful to others, and issues and contributions are welcome.
 
 ## Map
-$$\color{#E5E7EB}Tool \space \color{#A1A1AA}Map$$
 - [Install](#install)
 - [Functionality](#functionality)
 - [Runtime Defaults](#runtime-defaults)
@@ -22,10 +21,11 @@ $$\color{#E5E7EB}Tool \space \color{#A1A1AA}Map$$
 - [Credits](#credits)
 
 ## Install
+$$\color{#E5E7EB}Install \space \color{#A1A1AA}Tool$$
 
 ```bash
-uv tool install .
-spitter --help
+uv tool install .    # install the CLI
+spitter --help       # inspect available commands
 ```
 
 Requirements:
@@ -35,16 +35,14 @@ Requirements:
 - `CARTESIA_API_KEY` or a saved token file
 
 ## Functionality
-$$\color{#E5E7EB}Core \space \color{#A1A1AA}Features$$
-
-### Login
+$$\color{#E5E7EB}Token \space \color{#A1A1AA}Login$$
 - `spitter login`: save a Cartesia API token to the configured token file.
 - `spitter login --token ...`: pass the token directly on the command line.
 - `spitter login --stdin`: read the token from stdin.
 - `spitter login --validate`: verify the token immediately against the Cartesia API.
 - `spitter login --json`: emit a JSON result object.
 
-### Speech Synthesis
+$$\color{#E5E7EB}Speech \space \color{#A1A1AA}Synthesis$$
 - `spitter say <text>`: synthesize speech from a positional transcript.
 - `spitter say --stdin`: force transcript input from stdin.
 - `spitter say --transport bytes|websocket`: choose one-shot bytes mode or websocket streaming.
@@ -60,7 +58,7 @@ $$\color{#E5E7EB}Core \space \color{#A1A1AA}Features$$
 - `spitter say --dry-run`: print the resolved request instead of calling the API.
 - `spitter say --json`: emit a JSON result object.
 
-### Local Websocket Sessions
+$$\color{#E5E7EB}Session \space \color{#A1A1AA}Control$$
 - `spitter sessions start <name>`: start a named local websocket session daemon.
 - `spitter sessions start --idle-timeout <seconds>`: set the idle timeout before the upstream websocket is closed.
 - `spitter sessions list`: list local websocket session daemons.
@@ -68,17 +66,17 @@ $$\color{#E5E7EB}Core \space \color{#A1A1AA}Features$$
 - `spitter sessions stop <name>`: stop a named local websocket session daemon.
 - Session commands support `--json` for machine-readable output.
 
-### Voice Inspection
+$$\color{#E5E7EB}Voice \space \color{#A1A1AA}Browse$$
 - `spitter voices list`: list voices with page-size, cursor, query, ownership, gender, language, and preview URL controls.
 - `spitter voices get <voice-id>`: fetch one voice by ID.
 - Voice commands support JSON output and preview URL expansion.
 
-### Self-Description
+$$\color{#E5E7EB}CLI \space \color{#A1A1AA}Schema$$
 - `spitter describe`: emit the CLI contract, defaults, runtime assumptions, environment variables, and transport model as JSON.
 - `spitter describe <topic>`: focus the description on a command prefix such as `say`, `sessions`, or `voices`.
 
 ## Runtime Defaults
-$$\color{#E5E7EB}Runtime \space \color{#A1A1AA}Defaults$$
+$$\color{#E5E7EB}Default \space \color{#A1A1AA}Runtime$$
 
 - Default API base URL: `https://api.cartesia.ai`
 - Default model: `sonic-3`
@@ -87,22 +85,21 @@ $$\color{#E5E7EB}Runtime \space \color{#A1A1AA}Defaults$$
 - Default token file: `~/.config/spitter/cartesia-api-key`
 
 ## Quick Start
-$$\color{#E5E7EB}Quick \space \color{#A1A1AA}Start$$
+$$\color{#E5E7EB}Try \space \color{#A1A1AA}Speech$$
 
 ```bash
-spitter login --validate
+spitter login --validate    # save and validate the API token
 
-spitter say "Build finished."
-echo "Tea is ready." | spitter say --stdin
+spitter say "Build finished."                    # synthesize and play one short line
+echo "Tea is ready." | spitter say --stdin       # read the transcript from stdin
 
-spitter voices list --language en --query narrator
-spitter describe say
+spitter voices list --language en --query narrator    # browse matching voices
+spitter describe say                                  # print the CLI contract as JSON
 
-spitter say "Tell me now." --transport websocket --container raw
+spitter say "Tell me now." --transport websocket --container raw    # use websocket streaming mode
 ```
 
 ## Credits
-$$\color{#E5E7EB}Project \space \color{#A1A1AA}Credits$$
 
 This client is built for the Cartesia speech API and is not affiliated with Cartesia.
 
