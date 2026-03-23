@@ -14,11 +14,11 @@ Cartesia text-to-speech CLI for saved login, local playback, bytes mode, websock
 > This codebase is entirely AI-generated. It is useful to me, I hope it might be useful to others, and issues and contributions are welcome.
 
 ## Map
+$$\color{#E5E7EB}Tool \space \color{#A1A1AA}Map$$
 - [Install](#install)
 - [Functionality](#functionality)
 - [Runtime Defaults](#runtime-defaults)
 - [Quick Start](#quick-start)
-- [Development](#development)
 - [Credits](#credits)
 
 ## Install
@@ -34,14 +34,8 @@ Requirements:
 - `ffplay` for local playback
 - `CARTESIA_API_KEY` or a saved token file
 
-For local development:
-
-```bash
-uv sync --group dev
-uv run spitter --help
-```
-
 ## Functionality
+$$\color{#E5E7EB}Core \space \color{#A1A1AA}Features$$
 
 ### Login
 - `spitter login`: save a Cartesia API token to the configured token file.
@@ -84,6 +78,7 @@ uv run spitter --help
 - `spitter describe <topic>`: focus the description on a command prefix such as `say`, `sessions`, or `voices`.
 
 ## Runtime Defaults
+$$\color{#E5E7EB}Runtime \space \color{#A1A1AA}Defaults$$
 
 - Default API base URL: `https://api.cartesia.ai`
 - Default model: `sonic-3`
@@ -92,6 +87,7 @@ uv run spitter --help
 - Default token file: `~/.config/spitter/cartesia-api-key`
 
 ## Quick Start
+$$\color{#E5E7EB}Quick \space \color{#A1A1AA}Start$$
 
 ```bash
 spitter login --validate
@@ -105,15 +101,8 @@ spitter describe say
 spitter say "Tell me now." --transport websocket --container raw
 ```
 
-## Development
-
-```bash
-uv run ruff format --check .
-uv run ruff check .
-uv run mypy
-```
-
 ## Credits
+$$\color{#E5E7EB}Project \space \color{#A1A1AA}Credits$$
 
 This client is built for the Cartesia speech API and is not affiliated with Cartesia.
 
