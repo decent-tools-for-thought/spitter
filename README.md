@@ -16,12 +16,12 @@ Cartesia text-to-speech CLI for saved login, local playback, bytes mode, websock
 ## Map
 - [Install](#install)
 - [Functionality](#functionality)
-- [Runtime Defaults](#runtime-defaults)
+- [Configuration](#configuration)
 - [Quick Start](#quick-start)
 - [Credits](#credits)
 
 ## Install
-$$\color{#E5E7EB}Install \space \color{#A1A1AA}Tool$$
+$$\color{#D4D4D8}Install \space \color{#A1A1AA}Tool$$
 
 ```bash
 uv tool install .    # install the CLI
@@ -35,14 +35,14 @@ Requirements:
 - `CARTESIA_API_KEY` or a saved token file
 
 ## Functionality
-$$\color{#E5E7EB}Token \space \color{#A1A1AA}Login$$
+$$\color{#D4D4D8}Token \space \color{#A1A1AA}Login$$
 - `spitter login`: save a Cartesia API token to the configured token file.
 - `spitter login --token ...`: pass the token directly on the command line.
 - `spitter login --stdin`: read the token from stdin.
 - `spitter login --validate`: verify the token immediately against the Cartesia API.
 - `spitter login --json`: emit a JSON result object.
 
-$$\color{#E5E7EB}Speech \space \color{#A1A1AA}Synthesis$$
+$$\color{#D4D4D8}Speech \space \color{#A1A1AA}Synthesis$$
 - `spitter say <text>`: synthesize speech from a positional transcript.
 - `spitter say --stdin`: force transcript input from stdin.
 - `spitter say --transport bytes|websocket`: choose one-shot bytes mode or websocket streaming.
@@ -58,7 +58,7 @@ $$\color{#E5E7EB}Speech \space \color{#A1A1AA}Synthesis$$
 - `spitter say --dry-run`: print the resolved request instead of calling the API.
 - `spitter say --json`: emit a JSON result object.
 
-$$\color{#E5E7EB}Session \space \color{#A1A1AA}Control$$
+$$\color{#D4D4D8}Session \space \color{#A1A1AA}Control$$
 - `spitter sessions start <name>`: start a named local websocket session daemon.
 - `spitter sessions start --idle-timeout <seconds>`: set the idle timeout before the upstream websocket is closed.
 - `spitter sessions list`: list local websocket session daemons.
@@ -66,17 +66,17 @@ $$\color{#E5E7EB}Session \space \color{#A1A1AA}Control$$
 - `spitter sessions stop <name>`: stop a named local websocket session daemon.
 - Session commands support `--json` for machine-readable output.
 
-$$\color{#E5E7EB}Voice \space \color{#A1A1AA}Browse$$
+$$\color{#D4D4D8}Voice \space \color{#A1A1AA}Browse$$
 - `spitter voices list`: list voices with page-size, cursor, query, ownership, gender, language, and preview URL controls.
 - `spitter voices get <voice-id>`: fetch one voice by ID.
 - Voice commands support JSON output and preview URL expansion.
 
-$$\color{#E5E7EB}CLI \space \color{#A1A1AA}Schema$$
+$$\color{#D4D4D8}CLI \space \color{#A1A1AA}Schema$$
 - `spitter describe`: emit the CLI contract, defaults, runtime assumptions, environment variables, and transport model as JSON.
 - `spitter describe <topic>`: focus the description on a command prefix such as `say`, `sessions`, or `voices`.
 
-## Runtime Defaults
-$$\color{#E5E7EB}Default \space \color{#A1A1AA}Runtime$$
+## Configuration
+$$\color{#D4D4D8}Default \space \color{#A1A1AA}Runtime$$
 
 - Default API base URL: `https://api.cartesia.ai`
 - Default model: `sonic-3`
@@ -85,7 +85,7 @@ $$\color{#E5E7EB}Default \space \color{#A1A1AA}Runtime$$
 - Default token file: `~/.config/spitter/cartesia-api-key`
 
 ## Quick Start
-$$\color{#E5E7EB}Try \space \color{#A1A1AA}Speech$$
+$$\color{#D4D4D8}Try \space \color{#A1A1AA}Speech$$
 
 ```bash
 spitter login --validate    # save and validate the API token
