@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from email.message import Message
 from pathlib import Path
 from unittest import mock
 from urllib.error import HTTPError, URLError
@@ -291,7 +292,7 @@ class SpitterTests(unittest.TestCase):
             url="https://api.cartesia.ai/voices",
             code=401,
             msg="Unauthorized",
-            hdrs=None,
+            hdrs=Message(),
             fp=io.BytesIO(b'{"error":"bad token"}'),
         )
         with (

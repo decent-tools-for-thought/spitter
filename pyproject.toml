@@ -28,6 +28,7 @@ spitter = "spitter.cli:main"
 dev = [
   "build>=1.2.2",
   "mypy>=1.18.0",
+  "pytest>=8.4.2",
   "ruff>=0.11.0",
 ]
 
