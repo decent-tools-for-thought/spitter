@@ -1,44 +1,14 @@
-name: Drift Detection
+name: Package Drift
 
 on:
   schedule:
-    - cron: "0 8 * * 1"
+    - cron: "17 6 * * 1"
   workflow_dispatch:
 
 jobs:
-  rebuild-and-verify:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install build tooling
-        run: python -m pip install --upgrade pip build setuptools wheel
-
-      - name: Build distributions
-        run: python -m build --sdist --wheel --no-isolation
-
-      - name: Verify built distributions in fresh environments
-        run: |
-          python -m venv .venv-drift-wheel
-          . .venv-drift-wheel/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install dist/*.whl
-          python -c "import spitter"
-          spitter --help > /dev/null
-          spitter describe say > /dev/null
-          deactivate
-
-          python -m venv .venv-drift-sdist
-          . .venv-drift-sdist/bin/activate
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install --no-build-isolation --no-deps dist/*.tar.gz
-          python -c "import spitter"
-          spitter --help > /dev/null
-          spitter describe say > /dev/null
+  package-drift:
+    uses: decent-tools-for-thought/.github/.github/workflows/python-package-drift.yml@main
+    with:
+      package_import_name: spitter
+      cli_command: spitter
+      run_tests: false
